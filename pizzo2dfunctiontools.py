@@ -27,7 +27,7 @@ import numpy as np
 import astropy.units as u
 from astropy.constants import G
 from astropy import constants as const
-from functionsfortools import ddx_fwd, ddx_bwd, diffusive
+from functionsfortools import ddx_fwd, ddx_bwd, diffusive, ddx_central
 #%% defining needed functions
 def cs_func(Pr, rho, gamma = 5/3):
     """this function returns the cs**2 variable, where cs**2 = gamma*Pr/rho"""
@@ -126,10 +126,10 @@ def Pizzo_2D_Euler_Upwind(q,r,dp,dr):
     """
     ur, rho, Pr, up = q
     #computing derivative w.r.t. phi as input for the RHS source term
-    dqdp = np.array([ddx_fwd(q[0], dp, periodic = True, order = 1), #dur/dp
-                     ddx_fwd(q[1], dp, periodic = True, order = 1), #drho/dp
-                     ddx_fwd(q[2], dp, periodic = True, order = 1), #dPr/dp
-                     ddx_fwd(q[3], dp, periodic = True, order = 1)]) #dup/dp
+    dqdp = np.array([ddx_fwd(q[0], dp, Cx = 0, derivative = 1, periodic = True, order = 1), #dur/dp
+                     ddx_fwd(q[1], dp, Cx = 0, derivative = 1, periodic = True, order = 1), #drho/dp
+                     ddx_fwd(q[2], dp, Cx = 0, derivative = 1, periodic = True, order = 1), #dPr/dp
+                     ddx_fwd(q[3], dp, Cx = 0, derivative = 1, periodic = True, order = 1)]) #dup/dp
     H = H_forward_phi(dqdp, q, r)
     G = G_vec(q,r)
     q_pred = q + dr.value*(H + G)
@@ -145,10 +145,10 @@ def MacCormack_2D_corr(q_pred, q, r, dp, dr, theta = np.pi / 2):
         dp = phi step index
         dr = radial step index 
     """
-    dqdp_pred = np.array([ddx_bwd(q_pred[0], dp, periodic = True, order = 1), #dur/dp
-                     ddx_bwd(q_pred[1], dp, periodic = True, order = 1), #drho/dp
-                     ddx_bwd(q_pred[2], dp, periodic = True, order = 1), #dPr/dp
-                     ddx_bwd(q_pred[3], dp, periodic = True, order = 1)]) #dup/dp
+    dqdp_pred = np.array([ddx_bwd(q_pred[0], dp, Cx = 0, derivative = 1, periodic = True, order = 1), #dur/dp
+                          ddx_bwd(q_pred[1], dp, Cx = 0, derivative = 1, periodic = True, order = 1), #drho/dp
+                          ddx_bwd(q_pred[2], dp, Cx = 0, derivative = 1, periodic = True, order = 1), #dPr/dp
+                          ddx_bwd(q_pred[3], dp, Cx = 0, derivative = 1, periodic = True, order = 1)]) #dup/dp
     #getting predicted values of H, G
     H_pred = H_forward_phi(dqdp_pred, q_pred, r + dr)
     G_pred = G_vec(q_pred, r + dr)
@@ -187,22 +187,26 @@ def Euler_Upwind_2D(Cx, q, r, dp, dr):
     """
     ur, rho, Pr, up = q
     #computing derivative w.r.t. phi as input for the RHS source term
-    dqdp = np.array([ddx_fwd(q[0], dp, periodic = True, order = 1), #dur/dp
-                     ddx_fwd(q[1], dp, periodic = True, order = 1), #drho/dp
-                     ddx_fwd(q[2], dp, periodic = True, order = 1), #dPr/dp
-                     ddx_fwd(q[3], dp, periodic = True, order = 1)]) #dup/dp
+    dqdp = np.array([ddx_fwd(q[0], dp, Cx = Cx, derivative = 1, periodic = True, order = 1), #dur/dp
+                     ddx_fwd(q[1], dp, Cx = Cx, derivative = 1, periodic = True, order = 1), #drho/dp
+                     ddx_fwd(q[2], dp, Cx = Cx, derivative = 1, periodic = True, order = 1), #dPr/dp
+                     ddx_fwd(q[3], dp, Cx = Cx, derivative = 1, periodic = True, order = 1)]) #dup/dp
     #computing 2nd derivative
-    #dq2dp2 = np.array([ddx_central(q[0], dp, periodic = True, order = 2), #d2ur/dp2
-                       #ddx_central(q[1], dp, periodic = True, order = 2), #d2rho/dp2
-                       #ddx_central(q[2], dp, periodic = True, order = 2), #d2Pr/dp2
-                       #ddx_central(q[3], dp, periodic = True, order = 2)]) #d2up/dp2
-    #print(dq2dp2)
-    #diff = np.array([Cx*dq2dp2[0], Cx*dq2dp2[1], Cx*dq2dp2[2], Cx*dq2dp2[3] ])
+    d2qdp2 = np.array([ddx_central(q[0], dp,  Cx = Cx, periodic = True, order = 2), #d2ur/dp2
+                       ddx_central(q[1], dp,  Cx = Cx, periodic = True, order = 2), #d2rho/dp2
+                       ddx_central(q[2], dp,  Cx = Cx, periodic = True, order = 2), #d2Pr/dp2
+                       ddx_central(q[3], dp,  Cx = Cx, periodic = True, order = 2)]) #d2up/dp2
+    
+    #d2qdp2 = np.array([diffusive(Cx, q[0], dp, 129, periodic = True), 
+                       #diffusive(Cx, q[1], dp, 129, periodic = True), 
+                       #diffusive(Cx, q[2], dp, 129, periodic = True), 
+                       #diffusive(Cx, q[3], dp, 129, periodic = True)])
    
-    d2qdp2 = np.array([diffusive(Cx, q[0], dr.value, dp, 129, 400), 
-                       diffusive(Cx, q[1], dr.value, dp, 129, 400), 
-                       diffusive(Cx, q[2], dr.value, dp, 129, 400), 
-                       diffusive(Cx, q[3], dr.value, dp, 129, 400)])
+    #d2qdp2 = np.array([ddx_fwd(q[0], dp, Cx = Cx, derivative = 2, periodic = True, order = 2), #dur/dp
+                       #ddx_fwd(q[1], dp, Cx = Cx, derivative = 2, periodic = True, order = 2), #drho/dp
+                       #ddx_fwd(q[2], dp, Cx = Cx, derivative = 2, periodic = True, order = 2), #dPr/dp
+                       #ddx_fwd(q[3], dp, Cx = Cx, derivative = 2, periodic = True, order = 2)]) #dup/dp])])
+    
     H = H_forward_phi(dqdp, q, r)
     G = G_vec(q,r)
     q_pred = q + dr.value*(H + G + d2qdp2)
@@ -221,22 +225,25 @@ def MacCormack_2D_corr_v(Cx, q_pred, q, r, dp, dr, theta = np.pi / 2):
         Cx = artificial viscosity coefficient
     """
     #computed predicted convective term 
-    dqdp_pred = np.array([ddx_bwd(q_pred[0], dp, periodic = True, order = 1), #dur/dp
-                          ddx_bwd(q_pred[1], dp, periodic = True, order = 1), #drho/dp
-                          ddx_bwd(q_pred[2], dp, periodic = True, order = 1), #dPr/dp
-                          ddx_bwd(q_pred[3], dp, periodic = True, order = 1)]) #dup/dp
+    dqdp_pred = np.array([ddx_bwd(q_pred[0], dp, Cx = Cx, derivative = 1, periodic = True, order = 2), #dur/dp
+                          ddx_bwd(q_pred[1], dp, Cx = Cx, derivative = 1, periodic = True, order = 2), #drho/dp
+                          ddx_bwd(q_pred[2], dp, Cx = Cx, derivative = 1, periodic = True, order = 2), #dPr/dp
+                          ddx_bwd(q_pred[3], dp, Cx = Cx, derivative = 1, periodic = True, order = 2)]) #dup/dp
     #computing predicted diffusive term 
-    #dq2dp2_pred = np.array([ddx_central(q_pred[0], dp, periodic = True, order = 2), #d2ur/dp2
-                            #ddx_central(q_pred[1], dp, periodic = True, order = 2), #d2rho/dp2
-                            #ddx_central(q_pred[2], dp, periodic = True, order = 2), #d2Pr/dp2
-                            #ddx_central(q_pred[3], dp, periodic = True, order = 2)])
+    d2qdp2_pred = np.array([ddx_central(q_pred[0], dp, Cx = Cx, periodic = True, order = 2), #d2ur/dp2
+                            ddx_central(q_pred[1], dp, Cx = Cx, periodic = True, order = 2), #d2rho/dp2
+                            ddx_central(q_pred[2], dp, Cx = Cx, periodic = True, order = 2), #d2Pr/dp2
+                            ddx_central(q_pred[3], dp, Cx = Cx, periodic = True, order = 2)]) # does the same as diffusive function 
+   
+    #d2qdp2_pred = np.array([diffusive(Cx, q_pred[0], dp, 129, periodic = True), 
+                            #diffusive(Cx, q_pred[1], dp , 129,periodic = True), 
+                            #diffusive(Cx, q_pred[2], dp, 129, periodic = True), 
+                            #diffusive(Cx, q_pred[3], dp, 129, periodic = True)])
     
-    #diff = np.array([Cx*dq2dp2_pred[0], Cx*dq2dp2_pred[1], Cx*dq2dp2_pred[2], Cx*dq2dp2_pred[3]])
-    
-    d2qdp2_pred = np.array([diffusive(Cx, q_pred[0], dr.value, dp, 129, 400), 
-                            diffusive(Cx, q_pred[1], dr.value, dp, 129, 400), 
-                            diffusive(Cx, q_pred[2], dr.value, dp, 129, 400), 
-                            diffusive(Cx, q_pred[3], dr.value, dp, 129, 400)])
+    #d2qdp2_pred = np.array([ddx_bwd(q_pred[0], dp, Cx = Cx, derivative = 2, periodic = True, order = 2), #dur/dp
+                            #ddx_bwd(q_pred[1], dp, Cx = Cx, derivative = 2, periodic = True, order = 2), #drho/dp
+                            #ddx_bwd(q_pred[2], dp, Cx = Cx, derivative = 2, periodic = True, order = 2), #dPr/dp
+                            #ddx_bwd(q_pred[3], dp, Cx = Cx, derivative = 2, periodic = True, order = 2)]) #dup/dp])])
     
     #getting predicted values of H, G
     H_pred = H_forward_phi(dqdp_pred, q_pred, r + dr) #returns an array of H*dqdp
@@ -263,5 +270,5 @@ def MacCormack_2D(q, dp, dr, r, Cx, theta = np.pi / 2):
     q_pred = Euler_Upwind_2D(Cx = Cx, q = q, r = r, dp = dp, dr = dr)
     #corrector step 
     q_final = MacCormack_2D_corr_v(Cx = Cx, q_pred = q_pred, q = q, r = r, dp = dp, dr = dr,theta = theta) 
-    q_sol = boundary_conditions(q = q_final)
+    q_sol = boundary_conditions(q = q_pred)
     return q_sol
