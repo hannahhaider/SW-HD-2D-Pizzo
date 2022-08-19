@@ -50,70 +50,101 @@ def get_mas_path(cr, folder="hmi_mast_mas_std_0201"):
         dl.download()
     return mas_helio_dir.resolve()
 #%% derivatives
-def ddx_fwd(f, dx, periodic=True, order=1):
+def ddx_fwd(f, dx, Cx, derivative, periodic=True, order=1):
     """return the first derivative of f in x using a first-order, second-order, or 3rd order forward difference"""
-    if order == 1:
-        A = diags([-1, 1], [0, 1], shape=(f.shape[0], f.shape[0])).toarray()
-        if periodic:
-            A[-1, 0] = 1
-        else:
-            A[-1, -1] = 1
-            A[-1, -2] = -1
-        A /= dx
-    elif order == 2:
-        A = diags([-3/2, 2, -1/2], [0, 1, 2], shape=(f.shape[0], f.shape[0])).toarray()
-        if periodic:
-            A[-1, 0] = 2
-            A[-1, 1] = -1/2
-            A[-2, 0] = -1/2
-        else:
-            A[-1, -1] = 1/2
-            A[-1, -2] = -2
-            A[-1, -3] = 3/2
-            A[-2, -1] = 1/2
-            A[-2, -2] = -1/2
-    elif order == 3:
-        A = diags([-11/6, 3, -3/2, 1/3], [0, 1, 2, 3], shape=(f.shape[0], f.shape[0])).toarray()
-        if periodic:
-            A[-1, 0] = 3
-            A[-1, 1] = -3/2
-            A[-1, 2] = 1/3
-            A[-2, 0] = -3/2
-            A[-2, 1] = 1/3
-        else:
-            return ArithmeticError
-        A /= (dx)
-    return A @ f
-
-
-def ddx_bwd(f, dx, periodic=False, order=1): 
-    """return the first derivative of f in x using a first-order  or second-order backward difference"""
-    if order == 1:
-        A = diags([-1, 1], [-1, 0], shape=(f.shape[0], f.shape[0])).toarray()
-        if periodic:
-            A[0, -1] = -1
+    if derivative == 1:
+        if order == 1:
+            A = diags([-1, 1], [0, 1], shape=(f.shape[0], f.shape[0])).toarray()
+            if periodic:
+                A[-1, 0] = 1
+            else:
+                A[-1, -1] = 1
+                A[-1, -2] = -1
             A /= dx
-        else:
-            A[0, 0] = -1
-            A[0, 1] = 1
-        A /= dx
-    elif order ==  2:
-        A = diags([3/2, -2, 1/2], [0, -1, -2], shape = (f.shape[0], f.shape[0])).toarray()
-        if periodic:
-            A[0, 0] = 2
-            A[0, 1] = -1/2
-            A[1, 0] = -1/2
-        else:
-            A[0, 0] = 1/2
-            A[0, 1] = -2
-            A[0, 2] = 3/2
-            A[1, 0] = 1/2
-            A[1, 1] = -1/2
-        A /= dx
+        elif order == 2:
+            A = diags([-3/2, 2, -1/2], [0, 1, 2], shape=(f.shape[0], f.shape[0])).toarray()
+            if periodic:
+                A[-1, 0] = 2
+                A[-1, 1] = -1/2
+                A[-2, 0] = -1/2
+            else:
+                A[-1, -1] = 1/2
+                A[-1, -2] = -2
+                A[-1, -3] = 3/2
+                A[-2, -1] = 1/2
+                A[-2, -2] = -1/2
+            A /= (dx)
+        elif order == 3:
+            A = diags([-11/6, 3, -3/2, 1/3], [0, 1, 2, 3], shape=(f.shape[0], f.shape[0])).toarray()
+            if periodic:
+                A[-1, 0] = 3
+                A[-1, 1] = -3/2
+                A[-1, 2] = 1/3
+                A[-2, 0] = -3/2
+                A[-2, 1] = 1/3
+            else:
+                return ArithmeticError
+            A /= (dx)
+    elif derivative == 2:
+        if order == 2:
+            A = diags([2, -5, 4, -1], [0, 1, 2, 3], shape = (f.shape[0], f.shape[0])).toarray()
+            if periodic:
+                A[-1, 0] = 2
+                A[-1, 1] = -1/2
+                A[-2, 0] = -1/2
+            else:
+                A[-1, -1] = 1/2
+                A[-1, -2] = -2
+                A[-1, -3] = 3/2
+                A[-2, -1] = 1/2
+                A[-2, -2] = -1/2
+        A = A*Cx /(dx**3)
+    
     return A @ f
 
-def ddx_central(f, dx, periodic=True, order = 2):
-    """ return the first derivative of f in x using a first-order or a second order central difference"""
+
+def ddx_bwd(f, dx, Cx, derivative, periodic=False, order=1): 
+    """return the first derivative of f in x using a first-order  or second-order backward difference"""
+    if derivative == 1:
+        if order == 1:
+            A = diags([-1, 1], [-1, 0], shape=(f.shape[0], f.shape[0])).toarray()
+            if periodic:
+                A[0, -1] = -1
+            else:
+                A[0, 0] = -1
+                A[0, 1] = 1
+            A /= dx
+        elif order ==  2:
+            A = diags([3/2, -2, 1/2], [0, -1, -2], shape = (f.shape[0], f.shape[0])).toarray()
+            if periodic:
+                A[0, -1] = -2
+                A[1, -1] = 1/2
+                A[0, -1] = 1/2
+            else:
+                A[0, 0] = 1/2
+                A[0, 1] = -2
+                A[0, 2] = 3/2
+                A[1, 0] = 1/2
+                A[1, 1] = -1/2
+            A /= dx
+    elif derivative == 2:
+        if order == 2:
+            A = diags([2, -5, 4, -1], [0, -1, -2, -3], shape = (f.shape[0], f.shape[0])).toarray()
+            if periodic:
+                A[0, -1] = -2
+                A[1, -1] = 1/2
+                A[0, -1] = 1/2
+            else:
+                A[-1, -1] = 1/2
+                A[-1, -2] = -2
+                A[-1, -3] = 3/2
+                A[-2, -1] = 1/2
+                A[-2, -2] = -1/2
+        A = A*Cx / (dx**3)
+    return A @ f
+
+def ddx_central(f, dx, Cx, periodic=True, order = 2):
+    """ return the 1st derivative/2nd derivative of f in x using a first-order or a second order central difference"""
     if order == 1:
         A = diags([-1, 1], [-1, 1], shape=(f.shape[0], f.shape[0])).toarray()
         if periodic:
@@ -128,15 +159,24 @@ def ddx_central(f, dx, periodic=True, order = 2):
             A[-1, -3] = 1
         A /= (2 * dx)
     elif order == 2:
-        A = diags([1, -2, 1], [-1, 0, 1], shape = (f.shape[0], f.shape[0])).toarray()
+        A = diags([1, -2, 1], [-1, 0, 1], shape = (f.shape[0], f.shape[0])).toarray() #2nd derivative 
         if periodic:
             A[0,-1] = 1
             A[-1,0] = 1
-        A /= (dx**2)
+        else:
+            A[0, 0] = 2
+            A[0, 1] = -5 
+            A[0, 2] = 4
+            A[0, 3] = -1
+            A[-1, -1] = 2
+            A[-1, -2] = -5
+            A[-1, -3] = 4
+            A[-1, -4] = -1
+        A = A*Cx/ (dx**2)
             
     return A @ f
 #%% diffusion function 
-def diffusive(Cx, u, dx, dt, nx, nt):
+def diffusive(Cx, u, dx, nx, periodic = True):
     """this function returns the predictor/corrector of a diffusive term
     approximated by a second-order central difference.
     
@@ -144,14 +184,18 @@ def diffusive(Cx, u, dx, dt, nx, nt):
     
     ------
     #parameters:
-        u = solution vector of velocity 
+        Cx = viscosity coefficient
+        u = solution vector 
         dx = spatial step
-        dt = temporal step
         nx = number of spatial points
-        nt = number of temporal points
     """
-    Diff_matrix = Cx*(1/dx**2)*(2*np.diag(np.ones(nx)) - np.diag(np.ones(nx-1),-1)- np.diag(np.ones(nx-1),1))
+    Diff_matrix = Cx*(1/(dx**2))*(-2*np.diag(np.ones(nx)) + np.diag(np.ones(nx-1),-1) + np.diag(np.ones(nx-1),1))
+    
+    if periodic:
+        Diff_matrix[0,-1] = 1
+        Diff_matrix[-1,0] = 1
     diff = Diff_matrix @ u
+    
     return diff
 #%% omni data reading 
 def read_ascii_file(filename, index):
